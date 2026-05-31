@@ -6,12 +6,10 @@
 class Server {
 private:
     int server_fd = 0;
-    int port = 8080;
     struct sockaddr_in address;
 
 public:
-    explicit Server(int p) {
-        port = p;
+    explicit Server(int port) {
         server_fd = socket(AF_INET, SOCK_STREAM, 0);
         if (server_fd < 0) {
             throw std::runtime_error("Socket creation failed");
@@ -51,7 +49,7 @@ public:
             }
             std::cout << "Client connected";
             // handle
-            
+
 
             std::cout << "handle complete";
             close(client_fd);
