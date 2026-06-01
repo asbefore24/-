@@ -49,11 +49,25 @@ public:
             }
             std::cout << "Client connected";
             // handle
-
+            handleData(client_fd);
 
             std::cout << "handle complete";
             close(client_fd);
             std::cout << "Client disconnected" << std::endl;
         }
+    }
+
+    void handleData(int client_fd) {
+        char buffer[1024] = {0};
+
+        int bytes_read = read(client_fd, buffer, sizeof(buffer) - 1);
+        if (bytes_read <= 0) {
+            return;
+        }
+        buffer[bytes_read] = '\0';
+        std::cout << "[Server] Received: " << buffer << std::endl;
+        std::string response = "Server echo: " + std::string(buffer);
+        send(client_fd, response.c_str(), response.length(), 0);
+        return;
     }
 };
