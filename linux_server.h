@@ -1,5 +1,8 @@
 #include <string>
 #include <unistd.h>
+#include <functional>
+
+#include "include/httpCode.h"
 
 using namespace std;
 
@@ -11,7 +14,10 @@ private:
 private:
     void handleData(int client_fd);
 
-    bool parseHttp(int client_fd);
+    bool parseHttp(int client_fd, HttpRequest& request);
+
+    void handleRequest(const HttpRequest& request, actionType action, string url, 
+        std::function<void(const HttpRequest&)> callBack);
 
 public:
     explicit Server(int port);

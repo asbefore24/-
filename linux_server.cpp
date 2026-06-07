@@ -8,7 +8,6 @@
 #include <queue>
 
 #include "include/commonFunc.h"
-#include "include/httpCode.h"
 
 std::vector<std::thread> threadQueue;
 
@@ -77,29 +76,62 @@ void Server::run() {
 void Server::handleData(int client_fd) {
     while (true) {
         cout << "handle data: " << client_fd << endl;
-        auto res = parseHttp(client_fd);
+        HttpRequest request;
+        request.client_fd = client_fd;
+        auto res = parseHttp(client_fd, request);
         if (!res) {
             break;
         }
-        HttpResponse response;
-        auto fileString = CommonFunc::readFile("../resource/index.html");
-        response.beginHead("HTTP/1.1", to_string(200), "OK");
-        response.writeHead("Content-Type", "text/html");
-        response.writeHead("connection", "keep-alive");
-        response.writeHead("Content-length", to_string(fileString.length()));
-        response.endHead();
-        response.buffer += fileString;
-        send(client_fd, response.buffer.c_str(), response.buffer.length(), 0);
-        cout << "handle data complete: " << client_fd << endl;
+        
+        handleRequest(request, actionType::GET, "/", [](const HttpRequest& request) {
+            HttpResponse response;
+            auto fileString = CommonFunc::readFile("../resource/chatroom.html");
+            response.beginHead("HTTP/1.1", to_string(200), "OK");
+            response.writeHead("Content-Type", "text/html");
+            response.writeHead("Connection", "keep-alive");
+            response.writeHead("Content-Length", to_string(fileString.length()));
+            response.endHead();
+            response.buffer += fileString;
+            send(request.client_fd, response.buffer.c_str(), response.buffer.length(), 0);
+        });
+
+        handleRequest(request, actionType::GET, "/chatroom", [](const HttpRequest& request) {
+            HttpResponse response;
+            auto fileString = CommonFunc::readFile("../resource/chatroom.html");
+            response.beginHead("HTTP/1.1", to_string(200), "OK");
+            response.writeHead("Content-Type", "text/html");
+            response.writeHead("Content-Length", to_string(fileString.length()));
+            response.endHead();
+            response.buffer += fileString;
+            send(request.client_fd, response.buffer.c_str(), response.buffer.length(), 0);
+        });
+
+        handleRequest(request, actionType::POST, "/join", [](const HttpRequest& request) {
+            HttpResponse response;
+            cout << "body: " << request.body << endl;
+            response.beginHead("HTTP/1.1", to_string(200), "OK");
+            response.writeHead("Content-Type", "text/plain");
+            response.writeHead("Content-Length", to_string(request.body.length()));
+            response.endHead();
+            response.buffer += request.body;
+            send(request.client_fd, response.buffer.c_str(), response.buffer.length(), 0);
+        });
     }
     close(client_fd);
     cout << "Client close: " << client_fd << endl;
     return;
 }
 
-bool Server::parseHttp(int client_fd) {
+void Server::handleRequest(const HttpRequest& request, actionType action, string url, 
+    std::function<void(const HttpRequest&)> callBack) {
+    cout << "request: " << request.action << " " << request.url << endl;
+    if (request.action == action && request.url == url) {
+        callBack(request);
+    }
+}
+
+bool Server::parseHttp(int client_fd, HttpRequest& request) {
     char buffer[1024] = {0};
-    HttpRequest request;
     do {
         int n = read(client_fd, buffer, sizeof(buffer));
         if (n <= 0) {

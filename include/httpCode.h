@@ -1,12 +1,23 @@
 #include <string>
 #include <map>
 
+#include "commonFunc.h"
+
 using namespace std;
 
+enum actionType {
+    UNKNOWN = -1,
+    GET,
+    POST
+};
+
+static const map<string, actionType> actionMap = {{"GET", GET}, {"POST", POST}};
+
 struct HttpRequest {
+    int client_fd;
     string head;   
     string body;
-    string action;  // 请求行为
+    actionType action = actionType::UNKNOWN;;
     string url;     // 请求路径
     string version; // 请求版本
     bool head_recv_end = false;
@@ -35,20 +46,23 @@ struct HttpRequest {
         size_t pos = head.find("\r\n");
         string firstLine = head.substr(0, pos);
         auto space = firstLine.find(' ');
+        action = actionType::UNKNOWN;
         if (space != string::npos) {
-            action = firstLine.substr(0, space);
-        } else {
-            action = "GET";
+            auto type = firstLine.substr(0, space);
+            if (actionMap.count(type)) {
+                action = actionMap.at(type);
+            }
         }
-        auto space2 = firstLine.find(' ', space);
+        auto space2 = firstLine.find(' ', space + 1);
         if (space2 != string::npos) {
-            url = firstLine.substr(space, space2);
+            url = firstLine.substr(space + 1, space2 - space - 1);
             version = firstLine.substr(space2 + 1);
         } else {
             url = "/";
             version = "http/1.1";
         }
         pos += 2;
+        cout << firstLine << endl;
         while (pos != string::npos) {
             size_t next = head.find("\r\n", pos);
             string line = head.substr(pos, next - pos);
