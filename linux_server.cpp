@@ -4,12 +4,10 @@
 #include <sys/socket.h>
 #include <fcntl.h>
 #include <cstring>
-#include <thread>
-#include <queue>
 
 #include "include/commonFunc.h"
 
-std::vector<std::thread> threadQueue;
+using json = nlohmann::json;
 
 Server::Server(int port) {
     if (getaddrinfo("127.0.0.1", "8080", nullptr, &info) != 0) {
@@ -82,10 +80,10 @@ void Server::handleData(int client_fd) {
         if (!res) {
             break;
         }
-        
+        // index页面
         handleRequest(request, actionType::GET, "/", [](const HttpRequest& request) {
             HttpResponse response;
-            auto fileString = CommonFunc::readFile("../resource/chatroom.html");
+            auto fileString = CommonFunc::readFile("../resource/index.html");
             response.beginHead("HTTP/1.1", to_string(200), "OK");
             response.writeHead("Content-Type", "text/html");
             response.writeHead("Connection", "keep-alive");
@@ -94,7 +92,7 @@ void Server::handleData(int client_fd) {
             response.buffer += fileString;
             send(request.client_fd, response.buffer.c_str(), response.buffer.length(), 0);
         });
-
+        // chatroom页面
         handleRequest(request, actionType::GET, "/chatroom", [](const HttpRequest& request) {
             HttpResponse response;
             auto fileString = CommonFunc::readFile("../resource/chatroom.html");
@@ -105,27 +103,65 @@ void Server::handleData(int client_fd) {
             response.buffer += fileString;
             send(request.client_fd, response.buffer.c_str(), response.buffer.length(), 0);
         });
-
+        // 登录请求
         handleRequest(request, actionType::POST, "/join", [](const HttpRequest& request) {
             HttpResponse response;
-            cout << "body: " << request.body << endl;
+            User user = json::parse(request.body);
             response.beginHead("HTTP/1.1", to_string(200), "OK");
-            response.writeHead("Content-Type", "text/plain");
-            response.writeHead("Content-Length", to_string(request.body.length()));
+            response.writeHead("Content-Type", "application/json");
+            json obj;
+            // 校验账号
+            if (userMap.count(user.username) && userMap[user.username] == user.password) {
+                obj["success"] = ReturnCode::SUCCESS;
+            } else {
+                obj["success"] = ReturnCode::USER_ERROR;
+            }
+            string str = obj.dump();
+            response.writeHead("Content-Length", to_string(obj.dump().length()));
             response.endHead();
-            response.buffer += request.body;
+            response.buffer += obj.dump();
+            cout << response.buffer << endl;
+            send(request.client_fd, response.buffer.c_str(), response.buffer.length(), 0);
+        });
+
+        // 发送消息请求
+        handleRequest(request, actionType::POST, "/sendMessage", [this](const HttpRequest& request) {
+            HttpResponse response;
+            UserMessage data = json::parse(request.body);
+            response.beginHead("HTTP/1.1", to_string(200), "OK");
+            response.writeHead("Content-Type", "application/json");
+            response.endHead();
+            messages.push_back(data);
+            send(request.client_fd, response.buffer.c_str(), response.buffer.length(), 0);
+        });
+        // 获取消息请求
+        handleRequest(request, actionType::POST, "/recvMessage", [this](const HttpRequest& request) {
+            HttpResponse response;
+            response.beginHead("HTTP/1.1", to_string(200), "OK");
+            response.writeHead("Content-Type", "application/json");
+            json obj = messages;
+            response.writeHead("Content-Length", to_string(obj.dump().length()));
+            response.endHead();
+            response.buffer += obj.dump(); 
+            send(request.client_fd, response.buffer.c_str(), response.buffer.length(), 0);
+        });
+
+        handleRequest(request, actionType::UNKNOWN, "", [](const HttpRequest& request) {
+            HttpResponse response;
+            response.beginHead("HTTP/1.1", to_string(200), "OK");
+            response.endHead();
             send(request.client_fd, response.buffer.c_str(), response.buffer.length(), 0);
         });
     }
     close(client_fd);
     cout << "Client close: " << client_fd << endl;
-    return;
+    return; 
 }
 
 void Server::handleRequest(const HttpRequest& request, actionType action, string url, 
     std::function<void(const HttpRequest&)> callBack) {
     cout << "request: " << request.action << " " << request.url << endl;
-    if (request.action == action && request.url == url) {
+    if ((request.action == action && request.url == url) || (action == actionType::UNKNOWN && url.empty())) {
         callBack(request);
     }
 }

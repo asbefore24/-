@@ -11,6 +11,13 @@ enum actionType {
     POST
 };
 
+enum ReturnCode {
+    UNKNOWN_ERROR = -1,
+    SUCCESS,
+    USER_ERROR,
+    PASSWORD_ERROR
+};
+
 static const map<string, actionType> actionMap = {{"GET", GET}, {"POST", POST}};
 
 struct HttpRequest {

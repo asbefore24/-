@@ -1,8 +1,11 @@
 #include <string>
 #include <unistd.h>
 #include <functional>
+#include <thread>
+#include <vector>
 
 #include "include/httpCode.h"
+#include "include/user.h"
 
 using namespace std;
 
@@ -10,6 +13,8 @@ class Server {
 private:
     struct addrinfo *info = nullptr;
     int server_fd = 0;
+    vector<thread> threadQueue;
+    std::vector<UserMessage> messages;
 
 private:
     void handleData(int client_fd);
