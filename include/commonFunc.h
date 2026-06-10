@@ -1,3 +1,6 @@
+#ifndef COMMONFUNC
+#define COMMONFUNC
+
 #include <string>
 #include <fstream>
 #include <sstream>
@@ -10,3 +13,5 @@ namespace CommonFunc {
 
     void tolower(string& str);
 };
+
+#endif COMMONFUNC
