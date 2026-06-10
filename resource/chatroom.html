@@ -129,12 +129,92 @@
             font-size: 0.9rem;
             line-height: 1.55;
             color: #1e293b;
-            resize: none;
+            resize: vertical;
             outline: none;
             transition: all 0.2s;
             overflow-y: auto;
             scroll-behavior: smooth;
             box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        /* 消息条目 - 气泡风格 */
+        .message-item {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            animation: fadeInUp 0.2s ease-out;
+        }
+
+        /* 我自己的消息靠右样式 (根据用户名判断，动态添加类) */
+        .message-item.self {
+            align-items: flex-end;
+        }
+
+        .message-bubble {
+            max-width: 80%;
+            background: #f1f5f9;
+            border-radius: 20px;
+            padding: 10px 16px;
+            box-shadow: 0 1px 1px rgba(0, 0, 0, 0.05);
+            transition: all 0.1s;
+            word-wrap: break-word;
+        }
+
+        .self .message-bubble {
+            background: linear-gradient(135deg, #e0f2fe, #d9e6ff);
+            border-bottom-right-radius: 6px;
+            color: #0c4a6e;
+        }
+
+        .other .message-bubble {
+            background: #f8fafc;
+            border-bottom-left-radius: 6px;
+            border: 1px solid #eef2ff;
+        }
+
+        .message-meta {
+            display: flex;
+            align-items: baseline;
+            gap: 10px;
+            margin-bottom: 4px;
+            font-size: 0.7rem;
+            color: #5b6e8c;
+            flex-wrap: wrap;
+        }
+
+        .message-username {
+            font-weight: 700;
+            color: #3b82f6;
+            font-size: 0.75rem;
+        }
+
+        .self .message-username {
+            color: #6366f1;
+        }
+
+        .message-time {
+            font-size: 0.65rem;
+            color: #94a3b8;
+            letter-spacing: 0.2px;
+        }
+
+        .message-content {
+            font-size: 0.9rem;
+            line-height: 1.45;
+            word-break: break-word;
+            white-space: pre-wrap;
+        }
+
+        /* 空状态提示 */
+        .empty-chat {
+            text-align: center;
+            color: #94a3b8;
+            padding: 2rem;
+            font-style: italic;
+            font-size: 0.85rem;
         }
 
         /* 自定义滚动条 (消息区域) - 浅色主题 */
@@ -224,18 +304,6 @@
         .send-btn:active {
             transform: scale(0.92);
         }
-
-        /* 让textarea可垂直调整大小，但更美观 */
-        .messages-area {
-            resize: vertical;
-            min-height: 120px;
-        }
-
-        /* 优雅的占位符样式 */
-        .messages-area::placeholder {
-            color: #94a3b8;
-            font-style: italic;
-        }
     </style>
 </head>
 
@@ -249,13 +317,12 @@
 
         <div class="main-layout">
             <div class="messages-container">
-                <textarea class="messages-area" id="messagesArea"></textarea>
+                <div class="messages-area" id="messagesArea"></div>
                 <div class="input-area">
                     <div class="username-display-wrapper">
                         <span id="inputUsernameText"></span>
                     </div>
-                    <input type="text" id="messageInput" class="message-input" placeholder="输入消息"
-                        autocomplete="off">
+                    <input type="text" id="messageInput" class="message-input" placeholder="输入消息">
                     <button class="send-btn" id="sendBtn" onclick=sendMessage()>➤</button>
                 </div>
             </div>
@@ -267,10 +334,65 @@
         document.getElementById('inputUsernameText').innerText = currentUser;
 
         const messageInput = document.getElementById('messageInput');
+        const messagesArea = document.getElementById('messagesArea');
 
-        setInterval(() => {
-            recvMessage();
-        }, 1000);
+                function renderMessages(messagesArray) {
+            if (!messagesArea) return;
+            if (!Array.isArray(messagesArray) || messagesArray.length === 0) {
+                messagesArea.innerHTML = '<div class="empty-chat">✨ 暂无消息，发送第一条吧~</div>';
+                return;
+            }
+
+            messagesArea.innerHTML = '';
+
+            messagesArray.forEach(msg => {
+                // 安全取值: message, time, username
+                const messageText = msg.message;
+                const timeStr = msg.time;
+                const username = msg.username;
+
+                // 判断是否是当前用户发送的消息 (用于气泡靠右)
+                const isSelf = (username === currentUser);
+
+                // 创建外层 message-item
+                const itemDiv = document.createElement('div');
+                itemDiv.className = 'message-item';
+                if (isSelf) {
+                    itemDiv.classList.add('self');
+                } else {
+                    itemDiv.classList.add('other');
+                }
+
+                // 气泡内部结构: 元信息 + 内容
+                const bubbleDiv = document.createElement('div');
+                bubbleDiv.className = 'message-bubble';
+
+                // 元信息区 (用户名 + 时间)
+                const metaDiv = document.createElement('div');
+                metaDiv.className = 'message-meta';
+                const usernameSpan = document.createElement('span');
+                usernameSpan.className = 'message-username';
+                usernameSpan.innerText = username;
+                const timeSpan = document.createElement('span');
+                timeSpan.className = 'message-time';
+                timeSpan.innerText = timeStr;
+                metaDiv.appendChild(usernameSpan);
+                metaDiv.appendChild(timeSpan);
+
+                // 消息内容区
+                const contentDiv = document.createElement('div');
+                contentDiv.className = 'message-content';
+                // 简单支持换行符转义，保留文本样式
+                contentDiv.innerText = messageText;
+
+                bubbleDiv.appendChild(metaDiv);
+                bubbleDiv.appendChild(contentDiv);
+                itemDiv.appendChild(bubbleDiv);
+                messagesArea.appendChild(itemDiv);
+            });
+
+            messagesArea.scrollTop = messagesArea.scrollHeight;
+        }
 
         function getTimeString() {
             const now = new Date();
@@ -281,45 +403,6 @@
             const minutes = String(now.getMinutes()).padStart(2, '0');
             const seconds = String(now.getSeconds()).padStart(2, '0');
             return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
-        }
-
-        async function sendMessage() {
-            try {
-                var message = messageInput.value;
-                console.log(message)
-                if (message === '') {
-                    return;
-                }
-
-                const result = await postRequest('/sendMessage', {
-                    time: getTimeString(),
-                    username: currentUser,
-                    message: message
-                });
-                // // 检验 result
-                if (result.success == 0) {
-                    console.log('发送成功')
-                    messageInput.innerText = '';
-                } else {
-                    console.error('发送失败');
-                }
-            }
-            catch (error) {
-                console.error(`发送失败:`, JSON.stringify(error));
-                return;
-            }
-        }
-
-        async function recvMessage() {
-            try {
-                const result = await postRequest('/recvMessage', {});
-
-                document.getElementById('messagesArea').innerText = JSON.stringify(result);
-            }
-            catch (error) {
-                console.error(`接收信息失败:`, JSON.stringify(error));
-                return;
-            }
         }
 
         async function postRequest(endpoint, data) {
@@ -338,10 +421,70 @@
                     return await response.text();
                 }
             } catch (error) {
-                console.error(`POST 失败:`, JSON.stringify(error));
+                console.error(`POST 失败: ${endpoint}`, error);
                 throw error;
             }
         }
+
+        async function sendMessage() {
+            try {
+                let message = messageInput.value;
+                if (!message || message.trim() === '') {
+                    return;
+                }
+
+                const result = await postRequest('/sendMessage', {
+                    time: getTimeString(),
+                    username: currentUser,
+                    message: message.trim()
+                });
+                messageInput.value = '';
+                await recvMessage();
+            } catch (error) {
+                console.error(`发送失败:`, error);
+            }
+        }
+
+
+        let localmessages = [];
+        // 接收消息 (从后端拉取)
+        async function recvMessage() {
+            try {
+                const result = await postRequest('/recvMessage', {});
+                let messageArray = [];
+                if (Array.isArray(result)) {
+                    messageArray = result;
+                } else if (typeof result === 'string') {
+                    try {
+                        const parsed = JSON.parse(result);
+                        if (Array.isArray(parsed))  {
+                            messageArray = parsed;
+                        }
+                    } catch(e) {
+                        console.warn('解析字符串失败', result);
+                    }
+                }
+                
+                // 确保每条数据拥有标准字段 (兼容后端可能缺少字段)
+                const safeMessages = messageArray.map(item => ({
+                    message: item.message,
+                    time: item.time,
+                    username: item.username
+                }));
+                
+                // 调用渲染函数，将消息数组显示到界面上
+                if (safeMessages.length > localmessages.length) {
+                    localmessages = safeMessages;
+                    renderMessages(safeMessages);
+                }
+            } catch (error) {
+                console.error(`接收信息失败:`, error);
+            }
+        }
+
+        let intervalId = setInterval(() => {
+            recvMessage();
+        }, 1000);
     </script>
 </body>
 
