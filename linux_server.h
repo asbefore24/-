@@ -3,6 +3,7 @@
 #include <functional>
 #include <thread>
 #include <vector>
+#include <mutex>
 
 #include "include/httpCode.h"
 #include "include/user.h"
@@ -14,6 +15,7 @@ private:
     struct addrinfo *info = nullptr;
     int server_fd = 0;
     vector<thread> threadQueue;
+    std::mutex mtx;
     std::vector<UserMessage> messages;
 
 private:

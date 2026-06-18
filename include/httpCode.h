@@ -1,3 +1,6 @@
+#ifndef HTTPCODE
+#define HTTPCODE
+
 #include <string>
 #include <map>
 
@@ -111,3 +114,5 @@ struct HttpResponse {
         buffer.append("\r\n\r\n");
     }
 };
+
+#endif

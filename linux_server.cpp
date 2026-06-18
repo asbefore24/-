@@ -6,6 +6,7 @@
 #include <cstring>
 
 #include "include/commonFunc.h"
+#include "include/threadPool.h"
 
 using json = nlohmann::json;
 
@@ -62,12 +63,9 @@ void Server::run() {
             continue;
         }
         cout << "Client connected: "<< client_fd << endl;
-        threadQueue.emplace_back([this, client_fd]() {
+        threadPool::GetInstance().enqueueTask([this, client_fd]() {
             handleData(client_fd);
         });
-    }
-    for (auto& it : threadQueue) {
-        it.join();
     }
 }
 
@@ -131,6 +129,7 @@ void Server::handleData(int client_fd) {
             response.beginHead("HTTP/1.1", to_string(200), "OK");
             response.writeHead("Content-Type", "application/json");
             response.endHead();
+            std::lock_guard<std::mutex> lock(mtx);
             messages.push_back(data);
             send(request.client_fd, response.buffer.c_str(), response.buffer.length(), 0);
         });
@@ -139,6 +138,7 @@ void Server::handleData(int client_fd) {
             HttpResponse response;
             response.beginHead("HTTP/1.1", to_string(200), "OK");
             response.writeHead("Content-Type", "application/json");
+            std::lock_guard<std::mutex> lock(mtx);
             json obj = messages;
             response.writeHead("Content-Length", to_string(obj.dump().length()));
             response.endHead();
@@ -182,6 +182,7 @@ bool Server::parseHttp(int client_fd, HttpRequest& request) {
 
 int main() {
     try {
+        threadPool::GetInstance().init();
         Server it(8080);
         it.run();
     } catch (const std::exception& e) {

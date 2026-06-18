@@ -14,4 +14,4 @@ namespace CommonFunc {
     void tolower(string& str);
 };
 
-#endif COMMONFUNC
+#endif
