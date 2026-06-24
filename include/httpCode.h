@@ -38,17 +38,34 @@ struct HttpRequest {
     void push_chunk(string data) {
         if (head_recv_end) {
             body += data;
+            if (contentLen > 0 && body.length() >= contentLen) {
+                body_recv_end = true;
+                body = body.substr(0, contentLen); // 截断多余数据（粘包部分丢失）
+            }
             return;
         }
-        if (data.find("\r\n\r\n") == string::npos) {
-            head += data;
-        } else {
-            head_recv_end = true;
-            body_recv_end = true;
 
-            head += data.substr(0, data.find("\r\n\r\n"));
+        head += data;
+        size_t pos = head.find("\r\n\r\n");
+        if (pos != string::npos) {
+            head_recv_end = true;
+            string headPart = head.substr(0, pos);
+            string remain = head.substr(pos + 4);
+            head = headPart;
+
             parseHeader();
-            body = data.substr(data.find("\r\n\r\n") + 4);
+
+            if (!remain.empty()) {
+                body = remain;
+                if (contentLen > 0 && body.length() >= contentLen) {
+                    body_recv_end = true;
+                    body = body.substr(0, contentLen);
+                } else {
+                    body_recv_end = false;
+                }
+            } else {
+                body_recv_end = (contentLen == 0);
+            }
         }
     }
 
