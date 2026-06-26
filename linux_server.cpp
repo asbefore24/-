@@ -78,6 +78,7 @@ void Server::handleData(int client_fd) {
         if (!res) {
             break;
         }
+        cout << "parseHttp end"<< endl;
         // index页面
         handleRequest(request, actionType::GET, "/", [](const HttpRequest& request) {
             HttpResponse response;
@@ -128,6 +129,7 @@ void Server::handleData(int client_fd) {
             UserMessage data = json::parse(request.body);
             response.beginHead("HTTP/1.1", to_string(200), "OK");
             response.writeHead("Content-Type", "application/json");
+            response.writeHead("Content-Length", "0");
             response.endHead();
             std::lock_guard<std::mutex> lock(mtx);
             messages.push_back(data);
@@ -145,13 +147,6 @@ void Server::handleData(int client_fd) {
             response.buffer += obj.dump(); 
             send(request.client_fd, response.buffer.c_str(), response.buffer.length(), 0);
         });
-
-        handleRequest(request, actionType::UNKNOWN, "", [](const HttpRequest& request) {
-            HttpResponse response;
-            response.beginHead("HTTP/1.1", to_string(200), "OK");
-            response.endHead();
-            send(request.client_fd, response.buffer.c_str(), response.buffer.length(), 0);
-        });
     }
     close(client_fd);
     cout << "Client close: " << client_fd << endl;
@@ -160,7 +155,6 @@ void Server::handleData(int client_fd) {
 
 void Server::handleRequest(const HttpRequest& request, actionType action, string url, 
     std::function<void(const HttpRequest&)> callBack) {
-    cout << "request: " << request.action << " " << request.url << endl;
     if ((request.action == action && request.url == url) || (action == actionType::UNKNOWN && url.empty())) {
         callBack(request);
     }
@@ -171,7 +165,6 @@ bool Server::parseHttp(int client_fd, HttpRequest& request) {
     do {
         int n = read(client_fd, buffer, sizeof(buffer));
         if (n <= 0) {
-            cout << "recv end" << client_fd << endl;
             return false;
         }
         request.push_chunk(string(buffer, n));

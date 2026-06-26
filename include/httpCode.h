@@ -27,7 +27,7 @@ struct HttpRequest {
     int client_fd;
     string head;   
     string body;
-    actionType action = actionType::UNKNOWN;;
+    actionType action = actionType::UNKNOWN;
     string url;     // 请求路径
     string version; // 请求版本
     bool head_recv_end = false;
