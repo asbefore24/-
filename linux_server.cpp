@@ -78,7 +78,6 @@ void Server::handleData(int client_fd) {
         if (!res) {
             break;
         }
-        cout << "parseHttp end"<< endl;
         // index页面
         handleRequest(request, actionType::GET, "/", [](const HttpRequest& request) {
             HttpResponse response;

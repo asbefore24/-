@@ -15,17 +15,19 @@ private:
     queue<function<void()>> tasks;
     mutex mtx;
     condition_variable condition;
-    bool isStop;
+    bool isStop = false;
     once_flag flag;
 
 private:
     threadPool() noexcept = default;
 
     ~threadPool() {
-        lock_guard<mutex> lock(mtx);
-        isStop = true;
+        {
+            lock_guard<mutex> lock(mtx);
+            isStop = true;
+            condition.notify_all();
+        }
 
-        condition.notify_all();
         for (auto& iter: threads) {
             iter.join();
         }
@@ -38,6 +40,9 @@ public:
     }
 
     void init(int num = thread::hardware_concurrency() / 2) noexcept {
+        if (num <= 0) {
+            num = 1;
+        }
         call_once(flag, [this, &num]() {
             for (int i = 0; i < num; i++) {
                 threads.emplace_back([this]() {
@@ -61,6 +66,9 @@ public:
 
     template<class F, class... Args>
     void enqueueTask(F &&f, Args&&... args) {
+        if (isStop) {
+            return;
+        }
         function<void()> task = bind(std::forward<F>(f), std::forward<Args>(args)...);
         lock_guard<mutex> lock(mtx);
         tasks.emplace(task);
